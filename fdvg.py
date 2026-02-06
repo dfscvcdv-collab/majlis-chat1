@@ -1,22 +1,21 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
-# إعدادات الصفحة
-st.set_page_config(page_title="مجلس الركونياتي v4", layout="wide")
+# 1. رفع حد المساحة المسموح بها (نظرياً إلى 1 جيجا، لكن يعتمد على قوة السيرفر المجاني)
+# ملاحظة: لإتمام هذه الخطوة فعلياً، سنضيف إعداداً في ملف آخر لاحقاً.
 
-# التحديث التلقائي السريع (كل ثانية)
+st.set_page_config(page_title="مجلس الركونياتي v5", layout="wide")
+
 st_autorefresh(interval=1000, key="chatupdate")
 
 PASSWORD = "الركونياتي"
 
-# مخزن البيانات المشترك (الرسايل والمستخدمين المتصلين)
 @st.cache_resource
 def get_manager():
     return {"messages": [], "active_users": set()}
 
 data = get_manager()
 
-# تهيئة حالة الجلسة
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -27,63 +26,55 @@ if not st.session_state.logged_in:
     pwd = st.text_input("كلمة السر", type="password")
     
     if st.button("دخول"):
-        if pwd != PASSWORD:
-            st.error("كلمة السر غلط يا منيوك")
-        elif not name:
-            st.warning("لازم تكتب اسمك أول")
-        elif name in data["active_users"]:
-            st.error(f"الاسم '{name}' موجود حالياً بالشات، اختر اسم ثاني!")
-        else:
+        if pwd == PASSWORD and name and name not in data["active_users"]:
             st.session_state.logged_in = True
             st.session_state.username = name
-            data["active_users"].add(name) # إضافة الاسم لقائمة المتصلين
+            data["active_users"].add(name)
             st.rerun()
+        elif name in data["active_users"]:
+            st.error("الاسم مستخدم حالياً!")
     st.stop()
 
-# --- القائمة الجانبية ---
+# --- القائمة الجانبية لإرسال الملفات ---
 st.sidebar.title(f"هلا {st.session_state.username} 👋")
-st.sidebar.link_button(" دخول المكالمه المشفره", "https://meet.jit.si/AlRokonYati_Chat")
+st.sidebar.link_button("🎤 دخول المكالمة الآن", "https://meet.jit.si/AlRokonYati_Chat")
 
-# إرسال الصور (تم تعديله ليرسل أكثر من مرة)
 st.sidebar.divider()
-st.sidebar.subheader("🖼️ إرسال صورة")
-img_file = st.sidebar.file_uploader("اختر صورة", type=['png', 'jpg', 'jpeg'], key="img_uploader")
-if st.sidebar.button("نشر الصورة"):
-    if img_file:
+st.sidebar.subheader("📁 مشاركة ملفات كبيرة")
+uploaded_file = st.sidebar.file_uploader("اختر ملف (فيديو، ZIP، إلخ)", type=None)
+
+if st.sidebar.button("نشر الملف في الشات"):
+    if uploaded_file:
+        file_bytes = uploaded_file.getvalue()
         data["messages"].append({
             "user": st.session_state.username,
-            "type": "image",
-            "content": img_file.getvalue()
+            "type": "file",
+            "file_name": uploaded_file.name,
+            "content": file_bytes
         })
-        st.sidebar.success("تم إرسال الصورة!")
-        # لا نحتاج لعمل rerun هنا لأن التحديث التلقائي سيتكفل بالأمر
+        st.sidebar.success(f"تم إرسال {uploaded_file.name}!")
 
-# زر الخروج (عشان يحرر الاسم)
-if st.sidebar.button("🚶 تسجيل خروج"):
+if st.sidebar.button("🚶 خروج"):
     data["active_users"].discard(st.session_state.username)
     st.session_state.logged_in = False
     st.rerun()
 
-# --- منطقة الشات المباشر ---
-st.title(" مجلس الركونياتي المشفر ")
+# --- عرض الشات ---
+st.title(" مجلس الركونياتي - المشفر ")
 
-# عرض الرسائل (نصوص وصور)
 chat_placeholder = st.container()
 with chat_placeholder:
     for msg in data["messages"]:
         with st.chat_message("user" if msg["user"] == st.session_state.username else "assistant"):
-            if msg.get("type") == "image":
-                st.write(f"**{msg['user']}** أرسل صورة:")
-                st.image(msg["content"], width=300)
+            if msg.get("type") == "file":
+                st.write(f"📂 **{msg['user']}** أرسل ملفاً:")
+                st.download_button(label=f"📥 تحميل: {msg['file_name']}", 
+                                 data=msg['content'], 
+                                 file_name=msg['file_name'])
             else:
                 st.write(f"**{msg['user']}**: {msg['content']}")
 
-# إرسال النص
-text = st.chat_input("اكتب هنا..")
+text = st.chat_input("اكتب رسالتك...")
 if text:
-    data["messages"].append({
-        "user": st.session_state.username, 
-        "type": "text",
-        "content": text
-    })
+    data["messages"].append({"user": st.session_state.username, "type": "text", "content": text})
     st.rerun()
