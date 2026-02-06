@@ -1,17 +1,23 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
-st.set_page_config(page_title="مجلس الركونياتي - لوحة التحكم", layout="wide")
+# إعدادات الصفحة
+st.set_page_config(page_title="مجلس الركونياتي - نظام الإدارة", layout="wide")
 st_autorefresh(interval=1000, key="chatupdate")
 
-# إعدادات الأدمن والمستخدمين
+# إعدادات الحماية
 ADMIN_USER = "عبود"
 ADMIN_PWD = "الركونياتي عبود"
 USER_PWD = "الركونياتي"
 
+# مدير البيانات (المخزن المشترك)
 @st.cache_resource
 def get_manager():
-    return {"messages": [], "active_users": set(), "mute": False}
+    return {
+        "messages": [], 
+        "active_users": set(), 
+        "muted_list": set()  # قائمة الأشخاص المكتومين
+    }
 
 data = get_manager()
 
@@ -30,66 +36,82 @@ if not st.session_state.logged_in:
             st.session_state.is_admin = True
             st.session_state.username = name
             st.rerun()
-        elif pwd == USER_PWD and name and name not in data["active_users"]:
+        elif pwd == USER_PWD and name:
             st.session_state.logged_in = True
             st.session_state.is_admin = False
             st.session_state.username = name
             data["active_users"].add(name)
             st.rerun()
         else:
-            st.error("البيانات غلط أو الاسم مكرر")
+            st.error("البيانات غلط")
     st.stop()
 
-# --- لوحة التحكم (للأدمن فقط) ---
+# --- لوحة تحكم عبود (الأدمن) ---
 if st.session_state.is_admin:
-    st.sidebar.title("🛠 لوحة تحكم الأدمن")
-    if st.sidebar.button("🔇 كتم/إلغاء كتم الشات"):
-        data["mute"] = not data["mute"]
-        st.sidebar.success("تم تغيير حالة الشات")
+    st.sidebar.title("🛠 تحكم الإدارة")
     
-    if st.sidebar.button("🧹 مسح كل الشات"):
+    # ميزة الميوت لشخص معين
+    st.sidebar.subheader("🚫 كتم شخص محدد")
+    target_user = st.sidebar.selectbox("اختر الشخص", list(data["active_users"]))
+    if st.sidebar.button(f"كتم {target_user}"):
+        data["muted_list"].add(target_user)
+        st.sidebar.warning(f"تم كتم {target_user}")
+        
+    if st.sidebar.button("🔓 فك الكتم عن الجميع"):
+        data["muted_list"] = set()
+        st.sidebar.success("تم فك الكتم")
+
+    if st.sidebar.button("🧹 مسح الشات كاملاً"):
         data["messages"] = []
         st.rerun()
 
 st.sidebar.divider()
-st.sidebar.write(f"المستخدم: {st.session_state.username}")
-st.sidebar.link_button("🎤 المكالمة", "https://meet.jit.si/AlRokonYati_Chat")
+st.sidebar.link_button("🎤 المكالمة الصوتية", "https://meet.jit.si/AlRokonYati_Chat")
 
 # --- عرض الشات ---
 st.title("🎮 مجلس الركونياتي")
-if data["mute"]:
-    st.warning("⚠️ الشات مكتوم حالياً من قبل الأدمن")
+
+# التحقق إذا كان المستخدم الحالي مكتوم
+is_muted = st.session_state.username in data["muted_list"]
 
 for i, msg in enumerate(data["messages"]):
     cols = st.columns([0.9, 0.1])
     with cols[0]:
         with st.chat_message("user" if msg["user"] == st.session_state.username else "assistant"):
             if msg["type"] == "image":
-                st.write(f"🖼 **{msg['user']}**:")
+                st.write(f"🖼 **{msg['user']}** أرسل صورة:")
                 st.image(msg["content"], use_container_width=True)
-                st.download_button("📥 تحميل الصورة", msg["content"], file_name=f"img_{i}.png", key=f"dl_{i}")
+                st.download_button("📥 تحميل", msg["content"], file_name=f"img_{i}.png", key=f"dl_{i}")
             else:
                 st.write(f"**{msg['user']}**: {msg['content']}")
     
-    # زر الحذف للأدمن فقط
+    # زر حذف الرسالة (للأدمن فقط)
     with cols[1]:
         if st.session_state.is_admin:
             if st.button("❌", key=f"del_{i}"):
                 data["messages"].pop(i)
                 st.rerun()
 
-# --- إرسال الرسائل ---
-if not data["mute"] or st.session_state.is_admin:
-    col_msg, col_img = st.columns([0.8, 0.2])
-    
-    with col_img:
-        img_file = st.file_uploader("🖼", type=['png','jpg','jpeg'], label_visibility="collapsed")
-        if img_file:
-            if st.button("نشر"):
-                data["messages"].append({"user": st.session_state.username, "type": "image", "content": img_file.getvalue()})
-                st.rerun()
-                
-    text = st.chat_input("اكتب هنا...")
-    if text:
-        data["messages"].append({"user": st.session_state.username, "type": "text", "content": text})
+# --- منطقة الإرسال ---
+if is_muted:
+    st.error("🚫 أنت مكتوم من قبل الإدارة، ما تقدر ترسل رسايل.")
+else:
+    # منطقة رفع الصور (بجوار مربع النص)
+    with st.expander("🖼 إرسال صورة"):
+        img_file = st.file_uploader("اختر صورة", type=['png','jpg','jpeg'])
+        if img_file and st.button("نشر الصورة"):
+            data["messages"].append({
+                "user": st.session_state.username, 
+                "type": "image", 
+                "content": img_file.getvalue()
+            })
+            st.rerun()
+
+    prompt = st.chat_input("اكتب رسالتك...")
+    if prompt:
+        data["messages"].append({
+            "user": st.session_state.username, 
+            "type": "text", 
+            "content": prompt
+        })
         st.rerun()
