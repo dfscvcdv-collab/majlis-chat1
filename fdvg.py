@@ -1,13 +1,16 @@
 import streamlit as st
+import pandas as pd
+from datetime import datetime
 
 # إعدادات الصفحة
-st.set_page_config(page_title="مجلس الركونياتي", layout="wide")
+st.set_page_config(page_title="مجلس الركونياتي v3", layout="wide")
 
-# كلمة السر والبيانات
+# رابط ملف جوجل شيت (استبدل هذا بالرابط حقك)
+# ملاحظة: لتحويل الشيت لقاعدة بيانات حقيقية، نستخدم صيغة الـ CSV للملف
+SHEET_ID = "حط_هنا_رابط_الملف_حقك" 
+
 PASSWORD = "الركونياتي"
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -21,45 +24,32 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.username = name
             st.rerun()
-        else:
-            st.error("الاسم أو كلمة السر غلط")
     st.stop()
 
 # --- واجهة الشات ---
 st.sidebar.title(f"هلا {st.session_state.username}")
-
-# زر المكالمة - بطريقة مبسطة جداً
-st.sidebar.write("🎙️ **المكالمة الصوتية**")
 st.sidebar.link_button("🎤 دخول المكالمة الآن", "https://meet.jit.si/AlRokonYati_Chat")
+
+# زر لتحديث الشات يدوياً
+if st.sidebar.button("🔄 تحديث السوالف"):
+    st.rerun()
 
 st.title("🎮 شات مجلس الركونياتي")
 
-# عرض الرسائل
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(f"**{msg['user']}**: {msg['content']}")
-        if "img" in msg:
-            st.image(msg["img"], width=250)
+# محاكي لقاعدة بيانات (لحين ربطك الرسمي بـ Google Sheets API)
+# لتجربة سريعة الآن: سنستخدم الـ Cache المشترك
+if "shared_msg" not in st.session_state:
+    st.session_state.shared_msg = []
 
-# إرسال الصور من الجنب
-with st.sidebar:
-    st.divider()
-    up_img = st.file_uploader("ارسل صورة", type=['png', 'jpg', 'jpeg'], key="uploader")
-    if st.button("نشر الصورة"):
-        if up_img:
-            st.session_state.messages.append({
-                "role": "assistant",
-                "user": st.session_state.username,
-                "content": "أرسل صورة 👇",
-                "img": up_img.getvalue()
-            })
-            st.rerun()
+# عرض الرسايل
+for msg in st.session_state.shared_msg:
+    with st.chat_message("user" if msg["user"] == st.session_state.username else "assistant"):
+        st.write(f"**{msg['user']}**: {msg['content']}")
 
 # إرسال النص
-text = st.chat_input("اكتب هنا...")
+text = st.chat_input("اكتب هنا والكل بيشوفه...")
 if text:
-    st.session_state.messages.append({
-        "role": "user", 
+    st.session_state.shared_msg.append({
         "user": st.session_state.username, 
         "content": text
     })
