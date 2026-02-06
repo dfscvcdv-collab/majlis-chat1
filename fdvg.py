@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+import requests
+from io import StringIO
 
 # إعدادات الصفحة
-st.set_page_config(page_title="مجلس الركونياتي v3", layout="wide")
+st.set_page_config(page_title="مجلس الركونياتي - متصل", layout="wide")
 
-# رابط ملف جوجل شيت (استبدل هذا بالرابط حقك)
-# ملاحظة: لتحويل الشيت لقاعدة بيانات حقيقية، نستخدم صيغة الـ CSV للملف
-SHEET_ID = "حط_هنا_رابط_الملف_حقك" 
-
+# بيانات الربط بملف جوجل شيت الخاص بك
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1f6YVgCZKeXiFjeVTWrVrBGVv4YW6323DHvH9ldKNig8/export?format=csv"
 PASSWORD = "الركونياتي"
 
 if "logged_in" not in st.session_state:
@@ -26,31 +25,35 @@ if not st.session_state.logged_in:
             st.rerun()
     st.stop()
 
+# --- وظيفة جلب الرسائل من جوجل شيت ---
+def load_messages():
+    try:
+        response = requests.get(SHEET_CSV_URL)
+        df = pd.read_csv(StringIO(response.text))
+        return df.to_dict('records')
+    except:
+        return []
+
 # --- واجهة الشات ---
 st.sidebar.title(f"هلا {st.session_state.username}")
-st.sidebar.link_button("🎤 دخول المكالمة الآن", "https://meet.jit.si/AlRokonYati_Chat")
-
-# زر لتحديث الشات يدوياً
-if st.sidebar.button("🔄 تحديث السوالف"):
+if st.sidebar.button("🔄 تحديث الشات"):
     st.rerun()
 
 st.title("🎮 شات مجلس الركونياتي")
 
-# محاكي لقاعدة بيانات (لحين ربطك الرسمي بـ Google Sheets API)
-# لتجربة سريعة الآن: سنستخدم الـ Cache المشترك
-if "shared_msg" not in st.session_state:
-    st.session_state.shared_msg = []
+# عرض الرسائل المخزنة في جوجل شيت
+messages = load_messages()
+for msg in messages:
+    if pd.notna(msg.get('content')):
+        with st.chat_message("user" if msg['user'] == st.session_state.username else "assistant"):
+            st.write(f"**{msg['user']}**: {msg['content']}")
 
-# عرض الرسايل
-for msg in st.session_state.shared_msg:
-    with st.chat_message("user" if msg["user"] == st.session_state.username else "assistant"):
-        st.write(f"**{msg['user']}**: {msg['content']}")
-
-# إرسال النص
-text = st.chat_input("اكتب هنا والكل بيشوفه...")
+# إرسال نص جديد
+# ملاحظة: الإرسال المباشر لجوجل شيت يتطلب إعدادات إضافية (Google Forms أو API)
+# كحل سريع ومجاني، استخدم "st.chat_input" للتواصل اللحظي حالياً
+text = st.chat_input("اكتب رسالتك هنا...")
 if text:
-    st.session_state.shared_msg.append({
-        "user": st.session_state.username, 
-        "content": text
-    })
+    # هنا يتم عرض الرسالة محلياً، ولجعلها تظهر للكل بشكل دائم
+    # يفضل استخدام "Streamlit Google Sheets Connection"
+    st.session_state.messages.append({"user": st.session_state.username, "content": text})
     st.rerun()
