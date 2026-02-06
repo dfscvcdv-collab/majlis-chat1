@@ -26,7 +26,7 @@ if "logged_in" not in st.session_state:
 
 # --- شاشة الدخول ---
 if not st.session_state.logged_in:
-    st.title("🔐 دخول المجلس")
+    st.title("🔐 دخول المجلس المشفر")
     name = st.text_input("اسمك").strip()
     pwd = st.text_input("كلمة السر", type="password")
     
@@ -51,17 +51,17 @@ if st.session_state.is_admin:
     st.sidebar.title("🛠 تحكم الإدارة")
     
     # ميزة الميوت لشخص معين
-    st.sidebar.subheader("🚫 كتم شخص محدد")
+    st.sidebar.subheader(" كتم شخص محدد")
     target_user = st.sidebar.selectbox("اختر الشخص", list(data["active_users"]))
     if st.sidebar.button(f"كتم {target_user}"):
         data["muted_list"].add(target_user)
         st.sidebar.warning(f"تم كتم {target_user}")
         
-    if st.sidebar.button("🔓 فك الكتم عن الجميع"):
+    if st.sidebar.button(" فك الكتم عن الجميع"):
         data["muted_list"] = set()
         st.sidebar.success("تم فك الكتم")
 
-    if st.sidebar.button("🧹 مسح الشات كاملاً"):
+    if st.sidebar.button(" مسح الشات كاملاً"):
         data["messages"] = []
         st.rerun()
 
@@ -69,7 +69,7 @@ st.sidebar.divider()
 st.sidebar.link_button("🎤 المكالمة الصوتية", "https://meet.jit.si/AlRokonYati_Chat")
 
 # --- عرض الشات ---
-st.title("🎮 مجلس الركونياتي")
+st.title(" مجلس الركونياتي المشفر")
 
 # التحقق إذا كان المستخدم الحالي مكتوم
 is_muted = st.session_state.username in data["muted_list"]
@@ -115,3 +115,4 @@ else:
             "content": prompt
         })
         st.rerun()
+
