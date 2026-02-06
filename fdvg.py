@@ -44,32 +44,32 @@ if not st.session_state.logged_in:
             data["active_users"].add(name)
             st.rerun()
         else:
-            st.error("البيانات غلط! تأكد من الاسم وكلمة السر")
+            st.error("تاكد من اسمك وكلمة السر لو انت واحد غريب ولله لانيكك")
     st.stop()
 
 # --- لوحة تحكم الأدمن (عبود) ---
 if st.session_state.is_admin:
     st.sidebar.title("🛠 لوحة تحكم عبود")
     
-    st.sidebar.subheader("🔇 كتم مستخدم")
+    st.sidebar.subheader(" كتم مستخدم")
     to_mute = st.sidebar.selectbox("اختر الشخص لسكته", list(data["active_users"]))
     if st.sidebar.button(f"أعط {to_mute} ميوت"):
         data["muted_users"].add(to_mute)
         st.sidebar.warning(f"تم كتم {to_mute}")
 
-    if st.sidebar.button("🔓 فك الكتم عن الكل"):
+    if st.sidebar.button(" فك الكتم عن الكل"):
         data["muted_users"] = set()
         st.sidebar.success("الكل يقدر يتكلم الحين")
 
-    if st.sidebar.button("🧹 مسح الشات"):
+    if st.sidebar.button(" مسح الشات"):
         data["messages"] = []
         st.rerun()
 
 st.sidebar.divider()
-st.sidebar.link_button("🎤 المكالمة الصوتية", "https://meet.jit.si/AlRokonYati_Chat")
+st.sidebar.link_button(" المكالمة الصوتية", "https://meet.jit.si/AlRokonYati_Chat")
 
 # --- عرض الشات ---
-st.title("🎮 مجلس الركونياتي")
+st.title(" مجلس الركونياتي المشفر")
 
 for i, msg in enumerate(data["messages"]):
     # عرض الرسائل بشكل مرتب
@@ -109,3 +109,4 @@ else:
     if text:
         data["messages"].append({"user": st.session_state.username, "type": "text", "content": text})
         st.rerun()
+
