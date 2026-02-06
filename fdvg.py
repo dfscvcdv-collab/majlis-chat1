@@ -1,13 +1,11 @@
 import streamlit as st
-import time
 
-# 1. إعدادات الصفحة والأمان
+# 1. إعدادات الصفحة
 st.set_page_config(page_title="مجلس الركونياتي", page_icon="🎙️", layout="wide")
 
-# كلمة السر اللي طلبتها
 PASSWORD = "الركونياتي"
 
-# تهيئة قاعدة البيانات في الذاكرة
+# 2. تهيئة البيانات
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "logged_in" not in st.session_state:
@@ -27,37 +25,36 @@ if not st.session_state.logged_in:
             if pwd == PASSWORD and name:
                 st.session_state.logged_in = True
                 st.session_state.username = name
-                st.success("دخلت يا وحش!")
                 st.rerun()
             else:
                 st.error("الاسم أو كلمة السر غلط يا صاحبي")
     st.stop()
 
-# --- بعد تسجيل الدخول (واجهة الشات) ---
+# --- واجهة الشات الرئيسية ---
 st.sidebar.title(f"مرحباً، {st.session_state.username} 👋")
 
-# زر المكالمة الصوتية (حل ذكي ومجاني)
+# زر المكالمة الصوتية (تم تصحيح السطر المسبب للخطأ)
 st.sidebar.subheader("🎙️ المكالمة الصوتية")
-st.sidebar.info("اضغط الزر بالأسفل لفتح غرفة اتصال صوتي مجانية مع العيال")
-st.sidebar.markdown(f'<a href="https://meet.jit.si/AlRokonYati_Chat" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#FF4B4B; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">🎤 دخول المكالمة الآن</button></a>', unsafe_allow_context=True)
+st.sidebar.info("اضغط الزر لفتح غرفة اتصال صوتي")
+voice_link = "https://meet.jit.si/AlRokonYati_Chat"
+st.sidebar.markdown(f'<a href="{voice_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; border:none; padding:10px; border-radius:5px;">🎤 دخول المكالمة</button></a>', unsafe_allow_context=True)
 
 st.title(" شات الركونياتي")
 st.write("---")
 
-# عرض الرسائل
-chat_container = st.container()
-with chat_container:
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(f"**{msg['user']}**: {msg['content']}")
-            if "image" in msg:
-                st.image(msg["image"], width=300)
+# عرض الرسائل القديمة
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(f"**{msg['user']}**: {msg['content']}")
+        if "image" in msg:
+            st.image(msg["image"], width=300)
 
-# منطقة الإرسال (حل مشكلة الصور المتكررة)
+# منطقة إرسال الصور (في القائمة الجانبية)
 with st.sidebar:
-    st.subheader("📁 إرسال ملفات")
-    img_file = st.file_uploader("ارفع صورة", type=['png', 'jpg', 'jpeg'], key="img_upload")
-    if st.button("إرسال الصورة المختارة"):
+    st.write("---")
+    st.subheader("📁 إرسال صور")
+    img_file = st.file_uploader("اختر صورة", type=['png', 'jpg', 'jpeg'], key="img_upload")
+    if st.button("إرسال الصورة"):
         if img_file:
             st.session_state.messages.append({
                 "role": "assistant",
@@ -65,10 +62,10 @@ with st.sidebar:
                 "content": "أرسل صورة 👇",
                 "image": img_file.getvalue()
             })
-            st.success("تم إرسال الصورة!")
             st.rerun()
 
-prompt = st.chat_input("اكتب رسالتك هنا...")
+# منطقة إرسال النص
+prompt = st.chat_input("اكتب رسالتك...")
 if prompt:
     st.session_state.messages.append({
         "role": "user",
@@ -77,7 +74,7 @@ if prompt:
     })
     st.rerun()
 
-# زر مسح الشات (للمشرفين فقط)
-if st.sidebar.button("🧹 مسح الشات للكل"):
+# زر مسح الشات
+if st.sidebar.button("🧹 مسح الشات"):
     st.session_state.messages = []
     st.rerun()
