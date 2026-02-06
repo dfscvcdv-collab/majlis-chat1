@@ -1,45 +1,83 @@
 import streamlit as st
-import os
+import time
 
-# إعداد الصفحة
-st.set_page_config(page_title="مجلس الربع", page_icon="💬")
+# 1. إعدادات الصفحة والأمان
+st.set_page_config(page_title="مجلس الركونياتي", page_icon="🎙️", layout="wide")
 
-# إنشاء مخزن للرسائل إذا لم يكن موجوداً
+# كلمة السر اللي طلبتها
+PASSWORD = "الركونياتي"
+
+# تهيئة قاعدة البيانات في الذاكرة
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "username" not in st.session_state:
+    st.session_state.username = ""
 
-st.title("💬 غرفة سوالف العيال")
+# --- شاشة الدخول ---
+if not st.session_state.logged_in:
+    st.title("🔐 دخول مجلس الركونياتي")
+    with st.form("login_form"):
+        name = st.text_input("وش اسمك؟")
+        pwd = st.text_input("كلمة السر", type="password")
+        submit = st.form_submit_button("دخول")
+        
+        if submit:
+            if pwd == PASSWORD and name:
+                st.session_state.logged_in = True
+                st.session_state.username = name
+                st.success("دخلت يا وحش!")
+                st.rerun()
+            else:
+                st.error("الاسم أو كلمة السر غلط يا صاحبي")
+    st.stop()
+
+# --- بعد تسجيل الدخول (واجهة الشات) ---
+st.sidebar.title(f"مرحباً، {st.session_state.username} 👋")
+
+# زر المكالمة الصوتية (حل ذكي ومجاني)
+st.sidebar.subheader("🎙️ المكالمة الصوتية")
+st.sidebar.info("اضغط الزر بالأسفل لفتح غرفة اتصال صوتي مجانية مع العيال")
+st.sidebar.markdown(f'<a href="https://meet.jit.si/AlRokonYati_Chat" target="_blank" style="text-decoration:none;"><button style="width:100%; background-color:#FF4B4B; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">🎤 دخول المكالمة الآن</button></a>', unsafe_allow_context=True)
+
+st.title(" شات الركونياتي")
 st.write("---")
 
-# عرض الرسايل القديمة
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-        if "file" in msg:
-            if msg["type"].startswith("image"):
-                st.image(msg["file"])
-            else:
-                st.download_button("تحميل ملف", msg["file"], file_name=msg["file_name"])
+# عرض الرسائل
+chat_container = st.container()
+with chat_container:
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(f"**{msg['user']}**: {msg['content']}")
+            if "image" in msg:
+                st.image(msg["image"], width=300)
 
-# منطقة الإدخال
-prompt = st.chat_input("اكتب شيئاً...")
-uploaded_file = st.sidebar.file_uploader("ارفع صورة أو ملف صوتي", type=['png', 'jpg', 'mp3', 'pdf'])
+# منطقة الإرسال (حل مشكلة الصور المتكررة)
+with st.sidebar:
+    st.subheader("📁 إرسال ملفات")
+    img_file = st.file_uploader("ارفع صورة", type=['png', 'jpg', 'jpeg'], key="img_upload")
+    if st.button("إرسال الصورة المختارة"):
+        if img_file:
+            st.session_state.messages.append({
+                "role": "assistant",
+                "user": st.session_state.username,
+                "content": "أرسل صورة 👇",
+                "image": img_file.getvalue()
+            })
+            st.success("تم إرسال الصورة!")
+            st.rerun()
 
+prompt = st.chat_input("اكتب رسالتك هنا...")
 if prompt:
-    # عرض رسالتك فوراً
-    with st.chat_message("user"):
-        st.write(prompt)
-    # حفظها في الذاكرة
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-if uploaded_file is not None:
-    file_bytes = uploaded_file.getvalue()
     st.session_state.messages.append({
-        "role": "user", 
-        "content": f"أرسل ملف: {uploaded_file.name}",
-        "file": file_bytes,
-        "type": uploaded_file.type,
-        "file_name": uploaded_file.name
+        "role": "user",
+        "user": st.session_state.username,
+        "content": prompt
     })
-    st.sidebar.success("تم الرفع!")
+    st.rerun()
+
+# زر مسح الشات (للمشرفين فقط)
+if st.sidebar.button("🧹 مسح الشات للكل"):
+    st.session_state.messages = []
     st.rerun()
