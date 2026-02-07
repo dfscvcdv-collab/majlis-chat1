@@ -101,3 +101,4 @@ if prompt:
         ai_reply = call_real_ai(prompt, st.session_state.username)
         data["messages"].append({"user": "🤖 ركوني", "content": ai_reply})
     st.rerun()
+
