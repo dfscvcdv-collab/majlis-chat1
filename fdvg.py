@@ -54,7 +54,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.title(" دخول منظمة الركونياتي")
+    st.title(" دخول المشفر")
     u = st.text_input("الاسم")
     p = st.text_input("كلمة السر", type="password")
     if st.button("دخول"):
@@ -91,4 +91,5 @@ if prompt:
         ai_reply = call_real_ai(prompt, st.session_state.username)
         data["messages"].append({"user": "🤖 ركوني", "content": ai_reply})
     st.rerun()
+
 
