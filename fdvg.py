@@ -54,7 +54,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.title("🔐 دخول مجلس الركونياتي")
+    st.title(" دخول منظمة الركونياتي")
     u = st.text_input("الاسم")
     p = st.text_input("كلمة السر", type="password")
     if st.button("دخول"):
@@ -69,21 +69,21 @@ if not st.session_state.logged_in:
 with st.sidebar:
     st.title(f"مرحباً {st.session_state.username}")
     if st.session_state.is_admin:
-        if st.button("🧹 مسح الشات كاملاً"):
+        if st.button(" مسح الشات كاملاً"):
             data["messages"] = []
             st.rerun()
-    st.link_button("🎤 المكالمة الصوتية", "https://meet.jit.si/AlRokonYati_Secret")
+    st.link_button(" المكالمة الصوتية", "https://meet.jit.si/AlRokonYati_Secret")
     st.divider()
-    st.write("🤖 ركوني الآن: متصل وجاهز للشخصنة")
+    st.write(" ركوني الآن: متصل ")
 
 # --- عرض الشات ---
-st.title("🧠 مجلس ركوني (بمخ بشري)")
+st.title(" شات منظمة الركونياتي ")
 for m in data["messages"]:
     with st.chat_message("assistant" if "🤖" in m["user"] else "user"):
         st.write(f"**{m['user']}**: {m['content']}")
 
 # --- منطقة الإرسال ---
-prompt = st.chat_input("سولف مع ركوني..")
+prompt = st.chat_input(" ارسل ..")
 if prompt:
     data["messages"].append({"user": st.session_state.username, "content": prompt})
     # استدعاء المخ الحقيقي للتوليد
@@ -91,3 +91,4 @@ if prompt:
         ai_reply = call_real_ai(prompt, st.session_state.username)
         data["messages"].append({"user": "🤖 ركوني", "content": ai_reply})
     st.rerun()
+
