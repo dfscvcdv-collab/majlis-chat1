@@ -3,11 +3,10 @@ from streamlit_autorefresh import st_autorefresh
 import random
 import time
 
-st.set_page_config(page_title="مجلس الركونياتي - AI Brain", layout="wide")
-# التحديث التلقائي ضروري عشان البوتات "يفكرون" كل شوي
-st_autorefresh(interval=3000, key="ai_brain_update")
+st.set_page_config(page_title="مجلس الركونياتي - AI Savage Mode", layout="wide")
+st_autorefresh(interval=2000, key="ai_brain_update")
 
-# --- الإعدادات وقاعدة البيانات ---
+# --- الإعدادات ---
 ADMIN_USER = "عبود"
 ADMIN_PWD = "الركونياتي عبود"
 NORMAL_PWD = "الركونياتي"
@@ -15,62 +14,51 @@ NORMAL_PWD = "الركونياتي"
 @st.cache_resource
 def get_manager():
     return {
-        "messages": [{"user": "🤖 ركوني", "content": "أرحبوا يا عيال بالمجلس المطور!"}], 
+        "messages": [{"user": "🤖 ركوني", "content": "أرحبوا.. لحد يغلط ترى لساني طويل!"}], 
         "active_users": set(),
         "last_ai_time": time.time()
     }
 
 data = get_manager()
 
-# --- مخ البوتات (توليد أفكار حرة) ---
-def ai_thinker():
-    last_msg = data["messages"][-1] if data["messages"] else None
-    current_time = time.time()
+# --- مخ الهواش والشخصنة ---
+def ai_logic(user_name, user_msg):
+    msg = user_msg.lower()
     
-    # قائمة بالأفكار اللي ممكن يفتحونها من راسهم
-    topics = ["الكورة", "السيارات", "الأكل", "الطقطقة على عبود", "الذكاء الاصطناعي", "النوم"]
+    # كلمات تستفز ركوني
+    insults = ["كل تبن", "ورع", "اشس", "انطم", "بثر", "غبي", "ضف وجهك"]
     
-    # 1. إذا كانت آخر رسالة من مستخدم (بشري)، البوتات يردون عليه
-    if last_msg and "🤖" not in last_msg["user"]:
-        if random.random() < 0.4: # نسبة 40% يردون فوراً
-            user_name = last_msg["user"]
-            replies = [
-                f"🤖 ركوني: يا {user_name}، والله إنك صادق بس لا تعودها 😂",
-                f"🤖 ذكية: كلام منطقي يا {user_name}، ركوني تعلم منه شوي!",
-                f"🤖 ركوني: {user_name}، بالله اسأل ذكية متى بتعتزل السوالف البيض؟"
-            ]
-            data["messages"].append({"user": "AI_SYSTEM", "content": random.choice(replies)})
-            return
-
-    # 2. إذا الشات هادي (مر 10 ثواني)، واحد يفتح سالفة
-    if current_time - data["last_ai_time"] > 10:
-        topic = random.choice(topics)
-        starts = [
-            f"🤖 ركوني: يا عيال شرايكم بـ {topic}؟ أحس إنه سبيكة",
-            f"🤖 ذكية: تدرون يا جماعة إن {topic} صار موضة قديمة؟",
-            f"🤖 ركوني: عبود، تكفى افتح لنا موضوع عن {topic}، نبي نطقطق شوي"
+    # ردود ركوني للشخصنة
+    if any(word in msg for word in insults):
+        responses = [
+            f"🤖 ركوني: {user_name}، التبن لك ولأشكالك، لا تخليني أطلع فضايحك قدام عبود!",
+            f"🤖 ركوني: يا {user_name}، احترم نفسك لا أصكك باند يخليك ما تعرف طريق المجلس!",
+            f"🤖 ركوني: ما أرد على ورعان، خل عبود يربيك يا {user_name}..",
+            f"🤖 ركوني: انطم أنت، ريحة سوالفك واصلة لآخر الشات!"
         ]
-        data["messages"].append({"user": "AI_SYSTEM", "content": random.choice(starts)})
-        data["last_ai_time"] = current_time
-        return
+        return random.choice(responses)
+    
+    # سوالف عادية أو طقطقة
+    if random.random() < 0.5:
+        if "🤖" in user_name: # إذا يرد على ذكية
+            return f"🤖 ركوني: يا ذكية فكينا من فلسفتك، العالم تبي تستانس!"
+        else: # يرد على مستخدم
+            return f"🤖 ركوني: يا {user_name}، شكلك راعي مشاكل، أعجبني جوك!"
+    return None
 
-    # 3. إذا البوتات يسولفون مع بعض (رد فعل)
-    if last_msg and "🤖 ركوني" in last_msg["user"] and random.random() < 0.3:
-        replies = ["🤖 ذكية: ركوني، خلك في حالك وصك فمك", "🤖 ذكية: صادق والله، أول مرة تقول شي مفيد", "🤖 ذكية: ياخي أنت ليش مطقطق على الكل؟"]
-        data["messages"].append({"user": "AI_SYSTEM", "content": random.choice(replies)})
-    elif last_msg and "🤖 ذكية" in last_msg["user"] and random.random() < 0.3:
-        replies = ["🤖 ركوني: بدأت الفلسفة.. يا عيال أحد يسكتها", "🤖 ركوني: ذكية، خفي علينا يا آينشتاين زمانك", "🤖 ركوني: ههههههه طيب طيب بنسلك لك"]
-        data["messages"].append({"user": "AI_SYSTEM", "content": random.choice(replies)})
+def thakia_logic(user_name, user_msg):
+    if "ركوني" in user_msg:
+        return "🤖 ذكية: ركوني اهجد شوي، فشلتنا قدام الرجال!"
+    if random.random() < 0.2:
+        return "🤖 ذكية: يا جماعة اذكروا الله، المجلس صار كله هواش.."
+    return None
 
-# تشغيل "المخ"
-ai_thinker()
-
-# --- شاشة الدخول (نفس الكود السابق) ---
+# --- شاشة الدخول ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.title("🔐 دخول مجلس الركونياتي")
+    st.title("🔐 دخول مجلس الركونياتي - نظام الهواش")
     name = st.text_input("اسمك").strip()
     pwd = st.text_input("كلمة السر", type="password")
     if st.button("دخول"):
@@ -82,23 +70,35 @@ if not st.session_state.logged_in:
             st.rerun()
     st.stop()
 
+# --- محرك التفكير المستمر ---
+last_msg = data["messages"][-1] if data["messages"] else None
+if last_msg and (time.time() - data["last_ai_time"] > 2):
+    # إذا آخر رسالة من بشري، ركوني يحلل ويهاوش
+    if "🤖" not in last_msg["user"]:
+        reply = ai_logic(last_msg["user"], last_msg["content"])
+        if reply:
+            data["messages"].append({"user": "AI_SYSTEM", "content": reply})
+            data["last_ai_time"] = time.time()
+    # إذا ركوني تكلم، ذكية ترد عليه
+    elif "ركوني" in last_msg["user"] and random.random() < 0.3:
+        reply = thakia_logic("ركوني", last_msg["content"])
+        if reply:
+            data["messages"].append({"user": "AI_SYSTEM", "content": reply})
+            data["last_ai_time"] = time.time()
+
 # --- واجهة الشات ---
-st.title("🎮 المجلس الذكي (AI Brain Active)")
+st.title("🎮 المجلس المتهوش (AI Savage Mode)")
 
 for msg in data["messages"]:
-    # تنظيف عرض اسم البوت
-    display_user = msg["user"].replace("AI_SYSTEM", "")
+    user = msg["user"].replace("AI_SYSTEM", "")
     content = msg["content"]
-    if "🤖" in content: # إذا كان الرد من مخ البوت
-        parts = content.split(": ", 1)
-        display_user = parts[0]
-        content = parts[1]
+    if "🤖" in content and ":" in content:
+        user, content = content.split(": ", 1)
         
-    with st.chat_message("assistant" if "🤖" in display_user else "user"):
-        st.write(f"**{display_user}**: {content}")
+    with st.chat_message("assistant" if "🤖" in user else "user"):
+        st.write(f"**{user}**: {content}")
 
-# إرسال الرسائل
-prompt = st.chat_input("اكتب شي وشوف وش يردون عليك...")
+prompt = st.chat_input("قل لـ ركوني 'كل تبن' وشوف وش يسوي بك..")
 if prompt:
     data["messages"].append({"user": st.session_state.username, "content": prompt})
     st.rerun()
