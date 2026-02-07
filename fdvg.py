@@ -8,7 +8,7 @@ st.set_page_config(page_title="المنظمه السريه -", layout="wide")
 st_autorefresh(interval=4000, key="ai_brain_sync")
 
 # مفتاح الـ API حقك
-API_KEY = "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"
+API_KEY = "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"
 
 @st.cache_resource
 def get_manager():
@@ -103,3 +103,4 @@ if prompt:
         ai_reply = call_real_ai(prompt, st.session_state.username)
         data["messages"].append({"user": "🤖 ركوني", "content": ai_reply})
     st.rerun()
+
