@@ -9,7 +9,7 @@ st.set_page_config(page_title="مجلس الركونياتي - النسخة ال
 st_autorefresh(interval=4000, key="ai_brain_sync")
 
 # مفتاح الـ API حقك (تم الربط بنجاح)
-API_KEY = "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"
+API_KEY = "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"
 
 @st.cache_resource
 def get_manager():
@@ -91,3 +91,4 @@ if prompt:
         ai_reply = call_real_ai(prompt, st.session_state.username)
         data["messages"].append({"user": "🤖 ركوني", "content": ai_reply})
     st.rerun()
+
