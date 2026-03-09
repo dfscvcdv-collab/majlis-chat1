@@ -1,123 +1,168 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from PIL import Image
-import uuid
+import sqlite3
+import hashlib
+import io
 
-# --- إعدادات الهوية البصرية ---
-st.set_page_config(page_title="DARK NET | SECRET NETWORK", layout="wide", page_icon="💀")
+# --- إعداد قاعدة البيانات (الأرشفة الأبدية) ---
+def init_db():
+    conn = sqlite3.connect('dark_net.db')
+    c = conn.cursor()
+    # جدول المستخدمين
+    c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)''')
+    # جدول السيرفرات
+    c.execute('''CREATE TABLE IF NOT EXISTS servers (id TEXT PRIMARY KEY, name TEXT, creator TEXT)''')
+    # جدول أعضاء السيرفرات
+    c.execute('''CREATE TABLE IF NOT EXISTS server_members (server_id TEXT, username TEXT)''')
+    # جدول الرسائل (نص وصور)
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                 server_id TEXT, sender TEXT, content TEXT, type TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# --- دالات التعامل مع البيانات ---
+def add_user(u, p):
+    conn = sqlite3.connect('dark_net.db')
+    try:
+        conn.execute("INSERT INTO users VALUES (?, ?)", (u, p))
+        conn.commit()
+        return True
+    except: return False
+    finally: conn.close()
+
+def check_user(u, p):
+    conn = sqlite3.connect('dark_net.db')
+    user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p)).fetchone()
+    conn.close()
+    return user
+
+# --- إعدادات الواجهة ---
+st.set_page_config(page_title="DARK NET | PERSISTENT ARCHIVE", layout="wide")
+st_autorefresh(interval=4000, key="db_sync")
 
 st.markdown("""
     <style>
-    .main { background-color: #050505; color: #ff0000; }
-    .stApp { background-color: #050505; }
-    h1, h2, h3 { color: #ff0000 !important; font-family: 'Courier New'; text-shadow: 2px 2px #550000; }
-    .stButton>button { width: 100%; border-radius: 0px; background-color: #1a0000; color: #ff0000; border: 1px solid #ff0000; }
-    .stButton>button:hover { background-color: #ff0000; color: black; box-shadow: 0px 0px 20px #ff0000; }
-    .stTextInput>div>div>input { background-color: #0a0a0a; color: #00ff00 !important; border: 1px solid #444; }
-    [data-testid="stSidebar"] { background-color: #000000; border-right: 1px solid #ff0000; }
-    .server-card { padding: 10px; border: 1px solid #444; margin-bottom: 5px; border-radius: 5px; background: #0d0d0d; }
+    .stApp { background-color: #050505; color: #ff0000; }
+    h1, h2, h3 { color: #ff0000 !important; font-family: 'Courier New'; text-shadow: 2px 2px #330000; }
+    .stButton>button { width: 100%; background-color: #1a0000; color: #ff0000; border: 1px solid #ff0000; }
+    .stButton>button:hover { background-color: #ff0000; color: black; box-shadow: 0px 0px 15px #ff0000; }
+    .stTextInput>div>div>input { background-color: #000; color: #00ff00 !important; border: 1px solid #444; }
+    [data-testid="stSidebar"] { background-color: #000; border-right: 1px solid #ff0000; }
     </style>
     """, unsafe_allow_html=True)
 
-st_autorefresh(interval=3000, key="global_sync")
-
-# --- إدارة قاعدة البيانات (Local Simulation) ---
-if "users" not in st.session_state:
-    st.session_state.users = {"عبود": "الركونياتي"} # الحساب الافتراضي
-if "servers" not in st.session_state:
-    st.session_state.servers = {} # {server_id: {"name": "", "members": [], "messages": []}}
-if "user_sessions" not in st.session_state:
+# --- منطق الدخول والتسجيل ---
+if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- نظام تسجيل الدخول وإنشاء الحساب ---
 if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["🔐 LOGIN", "📝 REGISTER"])
+    st.markdown("<h1 style='text-align: center;'>🔴 DARK NET ENTRANCE</h1>", unsafe_allow_html=True)
+    tab1, tab2 = st.tabs(["🔐 LOGIN", "📝 JOIN THE ORGANIZATION"])
     
     with tab1:
         u = st.text_input("IDENTITY CODE")
         p = st.text_input("PASSKEY", type="password")
-        if st.button("AUTHORIZE"):
-            if u in st.session_state.users and st.session_state.users[u] == p:
-                st.session_state.logged_in = True
-                st.session_state.username = u
+        if st.button("AUTHORIZE ACCESS"):
+            if check_user(u, p):
+                st.session_state.logged_in, st.session_state.username = True, u
                 st.rerun()
-            else: st.error("INVALID IDENTITY")
-            
+            else: st.error("ACCESS DENIED")
+
     with tab2:
-        new_u = st.text_input("NEW IDENTITY")
+        new_u = st.text_input("NEW IDENTITY CODE")
         new_p = st.text_input("NEW PASSKEY", type="password")
-        if st.button("CREATE IDENTITY"):
-            if new_u and new_u not in st.session_state.users:
-                st.session_state.users[new_u] = new_p
-                st.success("Identity Created. Proceed to Login.")
-            else: st.error("Identity Taken or Invalid")
+        if st.button("INITIALIZE REGISTRATION"):
+            if new_u and new_p:
+                if add_user(new_u, new_p):
+                    # تسجيل دخول تلقائي فور الإنشاء
+                    st.session_state.logged_in, st.session_state.username = True, new_u
+                    st.success("Identity Created. Accessing Mainframe...")
+                    time.sleep(1)
+                    st.rerun()
+                else: st.error("Identity Code already exists in the archives.")
     st.stop()
 
-# --- القائمة الجانبية: إدارة السيرفرات ---
+# --- القائمة الجانبية وإدارة السيرفرات ---
 with st.sidebar:
-    st.markdown(f"### 👤 {st.session_state.username}")
-    if st.button("🔴 LOGOUT"):
+    st.markdown(f"### 💀 العميل: {st.session_state.username}")
+    if st.button("🔴 تدمير الجلسة (Logout)"):
         st.session_state.logged_in = False
         st.rerun()
     
     st.divider()
-    st.markdown("### 🌐 السيرفرات الخاصة")
     
     # إنشاء سيرفر جديد
-    with st.expander("➕ إنشاء سيرفر جديد"):
-        s_name = st.text_input("اسم السيرفر")
-        target_user = st.text_input("يوزر الشخص المراد إضافته")
-        if st.button("تأسيس السيرفر"):
-            if target_user in st.session_state.users:
-                s_id = str(uuid.uuid4())[:8]
-                st.session_state.servers[s_id] = {
-                    "name": s_name,
-                    "members": [st.session_state.username, target_user],
-                    "messages": []
-                }
-                st.success(f"تم إنشاء سيرفر {s_name}")
-            else: st.error("المستخدم غير موجود")
+    with st.expander("➕ تأسيس قناة سرية"):
+        s_name = st.text_input("اسم القناة")
+        target = st.text_input("يوزر العميل المستهدف")
+        if st.button("تأكيد التأسيس"):
+            import uuid
+            s_id = str(uuid.uuid4())[:8]
+            conn = sqlite3.connect('dark_net.db')
+            conn.execute("INSERT INTO servers VALUES (?, ?, ?)", (s_id, s_name, st.session_state.username))
+            conn.execute("INSERT INTO server_members VALUES (?, ?)", (s_id, st.session_state.username))
+            conn.execute("INSERT INTO server_members VALUES (?, ?)", (s_id, target))
+            conn.commit()
+            conn.close()
+            st.success("تم تأسيس القناة")
+            st.rerun()
 
     st.divider()
-    # عرض السيرفرات التي ينتمي لها المستخدم فقط
-    my_servers = {sid: s for sid, s in st.session_state.servers.items() if st.session_state.username in s["members"]}
+    # جلب السيرفرات الخاصة بالعميل
+    conn = sqlite3.connect('dark_net.db')
+    my_servs = conn.execute("""SELECT servers.id, servers.name FROM servers 
+                               JOIN server_members ON servers.id = server_members.server_id 
+                               WHERE server_members.username = ?""", (st.session_state.username,)).fetchall()
+    conn.close()
+
+    options = ["الساحة العامة"] + [f"{s[1]} ({s[0]})" for s in my_servs]
+    choice = st.radio("اختر قناة الاتصال:", options)
     
-    selected_server_id = st.radio("اختر قناة الاتصال:", ["الساحة العامة"] + list(my_servers.keys()), 
-                                  format_func=lambda x: my_servers[x]["name"] if x in my_servers else x)
+    selected_sid = "PUBLIC" if choice == "الساحة العامة" else choice.split('(')[-1].strip(')')
 
-# --- منطقة المحادثة ---
-if selected_server_id == "الساحة العامة":
-    st.title("📢 الساحة العامة (الأرشيف العام)")
-    if "public_messages" not in st.session_state: st.session_state.public_messages = []
-    messages_list = st.session_state.public_messages
-else:
-    st.title(f"🔒 سيرفر: {my_servers[selected_server_id]['name']}")
-    messages_list = st.session_state.servers[selected_server_id]["messages"]
+# --- نظام المحادثة المتقدم ---
+st.title(f"🕸️ ARCHIVE: {choice}")
 
-# عرض الرسائل
-for m in messages_list:
+# جلب الرسائل من قاعدة البيانات
+conn = sqlite3.connect('dark_net.db')
+msgs = conn.execute("SELECT sender, content, type FROM messages WHERE server_id=? ORDER BY timestamp ASC", (selected_sid,)).fetchall()
+conn.close()
+
+for m in msgs:
     with st.chat_message("user"):
-        st.write(f"**{m['user']}**")
-        if m["type"] == "text":
-            st.code(m["content"], language=None)
-        elif m["type"] == "image":
-            st.image(m["content"])
+        st.write(f"**[{m[0]}]**")
+        if m[2] == "text": st.code(m[1], language=None)
+        else: st.image(m[1])
 
-# إرسال الرسائل والصور
-prompt = st.chat_input("تشفير رسالة...")
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    img_file = st.file_uploader("🖼️ رفع صورة", type=['png','jpg'], label_visibility="collapsed")
+# منطقة الإرسال
+prompt = st.chat_input("أدخل البيانات...")
+img_file = st.sidebar.file_uploader("📤 رفع وثيقة (صورة)", type=['png', 'jpg'])
 
 if prompt:
-    messages_list.append({"user": st.session_state.username, "type": "text", "content": prompt})
+    conn = sqlite3.connect('dark_net.db')
+    conn.execute("INSERT INTO messages (server_id, sender, content, type) VALUES (?, ?, ?, ?)", 
+                 (selected_sid, st.session_state.username, prompt, "text"))
+    conn.commit()
+    conn.close()
     st.rerun()
 
 if img_file:
-    if st.sidebar.button("إرسال الصورة المختارة"):
-        image = Image.open(img_file)
-        messages_list.append({"user": st.session_state.username, "type": "image", "content": image})
+    if st.sidebar.button("إرسال الصورة"):
+        # تحويل الصورة لـ Base64 لتخزينها في قاعدة البيانات
+        img = Image.open(img_file)
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+        conn = sqlite3.connect('dark_net.db')
+        conn.execute("INSERT INTO messages (server_id, sender, content, type) VALUES (?, ?, ?, ?)", 
+                     (selected_sid, st.session_state.username, img_str, "image"))
+        conn.commit()
+        conn.close()
         st.rerun()
 
-# --- التذييل ---
-st.markdown("<br><br><p style='text-align: center; color: #222;'>ENCRYPTED END-TO-END | NO LOGS SAVED ON MAIN FRAME</p>", unsafe_allow_html=True)
+st.markdown("---")
+st.markdown("<p style='text-align: center; color: #1a1a1a;'>DATABASE STATUS: SECURED & PERSISTENT</p>", unsafe_allow_html=True)
