@@ -68,10 +68,10 @@ if not st.session_state.logged_in:
 
 # --- القائمة الجانبية (الأدوات السريّة) ---
 with st.sidebar:
-    st.title(f"💀 {st.session_state.username}")
+    st.title(f" {st.session_state.username}")
     
     # 1. المجموعات
-    with st.expander("📁 تأسيس مجموعة (Group)"):
+    with st.expander(" تأسيس مجموعة (Group)"):
         g_name = st.text_input("اسم المجموعة")
         m_list = st.text_input("الأعضاء (فاصلة بينهم)")
         if st.button("تأسيس Group"):
@@ -85,37 +85,50 @@ with st.sidebar:
             st.success(f"Group Created! Code: {inv}")
             st.rerun()
 
-    # 2. الخاص (Private DM)
-    with st.expander("👤 فتح اتصال خاص (DM)"):
+    # 2. الانضمام عبر كود (الميزة المطلوبة)
+    with st.expander(" انضمام عبر كود مشفر"):
+        inv_input = st.text_input("أدخل كود القناة")
+        if st.button("تفعيل الكود"):
+            conn = get_db()
+            server_to_join = conn.execute("SELECT id, name FROM servers WHERE invite_code = ?", (inv_input.upper(),)).fetchone()
+            if server_to_join:
+                conn.execute("INSERT OR IGNORE INTO server_members VALUES (?, ?)", (server_to_join[0], st.session_state.username))
+                conn.commit()
+                st.success(f"تم : {server_to_join[1]}")
+                st.rerun()
+            else:
+                st.error("الكود غير صالح أو منتهي")
+
+    # 3. الخاص (Private DM)
+    with st.expander(" فتح اتصال خاص (DM)"):
         target_user = st.text_input("يوزر العميل")
         if st.button("بدء التشفير الثنائي"):
             conn = get_db()
             if conn.execute("SELECT username FROM users WHERE username=?", (target_user,)).fetchone():
-                # توليد ID فريد للخاص يعتمد على ترتيب الأبجدية للاسماء عشان ما يتكرر
                 dm_id = "DM-" + "-".join(sorted([st.session_state.username, target_user]))
                 conn.execute("INSERT OR IGNORE INTO servers (id, name, creator, type) VALUES (?, ?, ?, 'DM')", (dm_id, f"Direct: {target_user}", "SYSTEM"))
                 conn.execute("INSERT OR IGNORE INTO server_members VALUES (?, ?)", (dm_id, st.session_state.username))
                 conn.execute("INSERT OR IGNORE INTO server_members VALUES (?, ?)", (dm_id, target_user))
                 conn.commit()
                 st.session_state.active_sid = dm_id
-                st.session_state.active_name = f"🔒 محادثة خاصة مع {target_user}"
+                st.session_state.active_name = f" محادثة خاصة مع {target_user}"
                 st.rerun()
             else: st.error("العميل غير موجود")
 
     st.divider()
     
-    # جلب القنوات (مجموعات + خاص)
     conn = get_db()
-    my_channels = conn.execute("""SELECT s.id, s.name, s.type FROM servers s 
+    my_channels = conn.execute("""SELECT s.id, s.name, s.type, s.invite_code FROM servers s 
                                   JOIN server_members sm ON s.id = sm.server_id 
                                   WHERE sm.username = ?""", (st.session_state.username,)).fetchall()
     
-    st.markdown("### 🛰️ قنوات الاتصال")
-    if st.button("📢 الساحة العامة"):
+    st.markdown("###  قنوات الاتصال")
+    if st.button(" الساحة العامة"):
         st.session_state.active_sid, st.session_state.active_name = "PUBLIC", "الساحة العامة"
 
     for c in my_channels:
-        label = f"👥 {c[1]}" if c[2] == 'GROUP' else f"✉️ {c[1]}"
+        # عرض الكود بجانب اسم القناة للمالك لسهولة الإرسال
+        label = f"👥 {c[1]} [{c[3]}]" if c[2] == 'GROUP' else f"✉️ {c[1]}"
         if st.button(label):
             st.session_state.active_sid, st.session_state.active_name = c[0], c[1]
 
@@ -123,15 +136,13 @@ with st.sidebar:
 if "active_sid" not in st.session_state:
     st.session_state.active_sid, st.session_state.active_name = "PUBLIC", "الساحة العامة"
 
-st.title(f"📡 {st.session_state.active_name}")
+st.title(f" {st.session_state.active_name}")
 
-# عرض الأعضاء في المجموعات
 if "DM-" not in st.session_state.active_sid and st.session_state.active_sid != "PUBLIC":
     conn = get_db()
     m_data = conn.execute("SELECT username FROM server_members WHERE server_id=?", (st.session_state.active_sid,)).fetchall()
     st.markdown(" ".join([f"<span class='member-tag'>● {m[0]}</span>" for m in m_data]), unsafe_allow_html=True)
 
-# عرض الرسائل
 conn = get_db()
 msgs = conn.execute("SELECT sender, content, type FROM messages WHERE server_id=? ORDER BY timestamp ASC", (st.session_state.active_sid,)).fetchall()
 for m in msgs:
@@ -140,9 +151,8 @@ for m in msgs:
         if m[2] == "text": st.code(m[1], language=None)
         else: st.image(m[1])
 
-# منطقة الإرسال
-prompt = st.chat_input("تشفير رسالة...")
-img_file = st.sidebar.file_uploader("📤 رفع وثيقة", type=['png','jpg'])
+prompt = st.chat_input(" رسالة...")
+img_file = st.sidebar.file_uploader("📤 رفع صور", type=['png','jpg'])
 
 if prompt:
     conn = get_db()
