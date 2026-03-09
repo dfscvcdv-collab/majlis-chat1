@@ -6,23 +6,22 @@ import uuid
 import io
 import base64
 
-# --- إعداد قاعدة البيانات ---
+# --- إعداد قاعدة البيانات v4 ---
 def init_db():
-    conn = sqlite3.connect('dark_net_v3.db')
+    conn = sqlite3.connect('dark_net_v4.db')
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS servers (id TEXT PRIMARY KEY, name TEXT, creator TEXT, invite_code TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS servers (id TEXT PRIMARY KEY, name TEXT, creator TEXT, invite_code TEXT, type TEXT DEFAULT "GROUP")')
     c.execute('CREATE TABLE IF NOT EXISTS server_members (server_id TEXT, username TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, server_id TEXT, sender TEXT, content TEXT, type TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
     conn.commit()
     conn.close()
 
 init_db()
+def get_db(): return sqlite3.connect('dark_net_v4.db')
 
-def get_db(): return sqlite3.connect('dark_net_v3.db')
-
-# --- واجهة المستخدم (التصميم المرعب) ---
-st.set_page_config(page_title="DARK NET | FINAL ARCHIVE", layout="wide")
+# --- التصميم الفخم ---
+st.set_page_config(page_title="DARK NET | PRIVATE COMMS", layout="wide")
 st_autorefresh(interval=3000, key="global_sync")
 
 st.markdown("""
@@ -30,110 +29,107 @@ st.markdown("""
     .stApp { background-color: #050505; color: #ff0000; }
     h1, h2, h3 { color: #ff0000 !important; font-family: 'Courier New'; }
     .stButton>button { width: 100%; background-color: #1a0000; color: #ff0000; border: 1px solid #ff0000; font-weight: bold; }
-    .stButton>button:hover { background-color: #ff0000 !important; color: black !important; }
+    .stButton>button:hover { background-color: #ff0000 !important; color: black !important; box-shadow: 0px 0px 10px #ff0000; }
     .stTextInput>div>div>input { background-color: #000; color: #00ff00 !important; border: 1px solid #444; }
     [data-testid="stSidebar"] { background-color: #000; border-right: 2px solid #ff0000; }
-    .member-tag { padding: 5px; border: 1px solid #00ff00; color: #00ff00; border-radius: 5px; margin: 2px; display: inline-block; font-size: 12px; }
+    .member-tag { padding: 4px 8px; border: 1px solid #ff0000; color: #ff0000; border-radius: 4px; margin: 2px; display: inline-block; font-size: 11px; background: #1a0000; }
     </style>
     """, unsafe_allow_html=True)
 
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 
-# --- نظام الدخول والتسجيل (مع منع التكرار) ---
+# --- بوابة الدخول ---
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center;'>🔴 DARK NET TERMINAL</h1>", unsafe_allow_html=True)
-    t1, t2 = st.tabs(["ENTRY (دخول)", "NEW IDENTITY (إنشاء حساب)"])
-    
+    t1, t2 = st.tabs(["ENTRY", "NEW IDENTITY"])
     with t1:
         u = st.text_input("ID")
         p = st.text_input("KEY", type="password")
         if st.button("CONNECT"):
             conn = get_db()
-            user = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p)).fetchone()
-            if user:
+            if conn.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p)).fetchone():
                 st.session_state.logged_in, st.session_state.username = True, u
                 st.rerun()
-            else: st.error("❌ خطأ في الهوية أو كلمة المرور")
-            
+            else: st.error("ACCESS DENIED")
     with t2:
-        nu = st.text_input("CHOOSE NEW ID")
-        np = st.text_input("CHOOSE NEW KEY", type="password")
-        if st.button("GENERATE IDENTITY"):
+        nu = st.text_input("NEW ID")
+        np = st.text_input("NEW KEY", type="password")
+        if st.button("GENERATE"):
             if nu and np:
                 conn = get_db()
-                existing = conn.execute("SELECT username FROM users WHERE username=?", (nu,)).fetchone()
-                if existing:
-                    st.error("⚠️ هذا الاسم مستخدم بالفعل في المنظمة! اختر اسماً آخر.")
+                if conn.execute("SELECT username FROM users WHERE username=?", (nu,)).fetchone():
+                    st.error("Identity Taken")
                 else:
                     conn.execute("INSERT INTO users VALUES (?, ?)", (nu, np))
                     conn.commit()
                     st.session_state.logged_in, st.session_state.username = True, nu
-                    st.success("✅ تم إنشاء الهوية.. جاري الدخول للمنظومة")
                     st.rerun()
-            else: st.warning("الرجاء إدخال بيانات كاملة")
     st.stop()
 
-# --- القائمة الجانبية (الأوامر) ---
+# --- القائمة الجانبية (الأدوات السريّة) ---
 with st.sidebar:
-    st.title(f"👤 {st.session_state.username}")
-    if st.button("🔴 خروج آمن"):
-        st.session_state.logged_in = False
-        st.rerun()
+    st.title(f"💀 {st.session_state.username}")
     
-    st.divider()
-    
-    # إنشاء قناة
-    with st.expander("📁 تأسيس مجموعة"):
+    # 1. المجموعات
+    with st.expander("📁 تأسيس مجموعة (Group)"):
         g_name = st.text_input("اسم المجموعة")
-        members = st.text_input("يوزرات الأعضاء (فاصلة بينهم)")
-        if st.button("تأسيس"):
-            sid = str(uuid.uuid4())[:8]
-            inv_code = str(uuid.uuid4())[:5].upper()
+        m_list = st.text_input("الأعضاء (فاصلة بينهم)")
+        if st.button("تأسيس Group"):
+            sid, inv = str(uuid.uuid4())[:8], str(uuid.uuid4())[:5].upper()
             conn = get_db()
-            conn.execute("INSERT INTO servers VALUES (?, ?, ?, ?)", (sid, g_name, st.session_state.username, inv_code))
+            conn.execute("INSERT INTO servers VALUES (?, ?, ?, ?, 'GROUP')", (sid, g_name, st.session_state.username, inv))
             conn.execute("INSERT INTO server_members VALUES (?, ?)", (sid, st.session_state.username))
-            for m in members.split(','):
-                target = m.strip()
-                if target: conn.execute("INSERT INTO server_members VALUES (?, ?)", (sid, target))
+            for m in m_list.split(','):
+                if m.strip(): conn.execute("INSERT INTO server_members VALUES (?, ?)", (sid, m.strip()))
             conn.commit()
-            st.success(f"تم! الكود: {inv_code}")
+            st.success(f"Group Created! Code: {inv}")
             st.rerun()
 
-    # انضمام
-    with st.expander("🔑 انضمام بكود"):
-        code = st.text_input("الكود")
-        if st.button("انضمام"):
+    # 2. الخاص (Private DM)
+    with st.expander("👤 فتح اتصال خاص (DM)"):
+        target_user = st.text_input("يوزر العميل")
+        if st.button("بدء التشفير الثنائي"):
             conn = get_db()
-            serv = conn.execute("SELECT id FROM servers WHERE invite_code=?", (code,)).fetchone()
-            if serv:
-                conn.execute("INSERT OR IGNORE INTO server_members VALUES (?, ?)", (serv[0], st.session_state.username))
+            if conn.execute("SELECT username FROM users WHERE username=?", (target_user,)).fetchone():
+                # توليد ID فريد للخاص يعتمد على ترتيب الأبجدية للاسماء عشان ما يتكرر
+                dm_id = "DM-" + "-".join(sorted([st.session_state.username, target_user]))
+                conn.execute("INSERT OR IGNORE INTO servers (id, name, creator, type) VALUES (?, ?, ?, 'DM')", (dm_id, f"Direct: {target_user}", "SYSTEM"))
+                conn.execute("INSERT OR IGNORE INTO server_members VALUES (?, ?)", (dm_id, st.session_state.username))
+                conn.execute("INSERT OR IGNORE INTO server_members VALUES (?, ?)", (dm_id, target_user))
                 conn.commit()
+                st.session_state.active_sid = dm_id
+                st.session_state.active_name = f"🔒 محادثة خاصة مع {target_user}"
                 st.rerun()
+            else: st.error("العميل غير موجود")
 
     st.divider()
-    conn = get_db()
-    my_servs = conn.execute("SELECT s.id, s.name, s.invite_code FROM servers s JOIN server_members sm ON s.id = sm.server_id WHERE sm.username=?", (st.session_state.username,)).fetchall()
     
-    st.markdown("### 🛰️ قنواتك النشطة")
+    # جلب القنوات (مجموعات + خاص)
+    conn = get_db()
+    my_channels = conn.execute("""SELECT s.id, s.name, s.type FROM servers s 
+                                  JOIN server_members sm ON s.id = sm.server_id 
+                                  WHERE sm.username = ?""", (st.session_state.username,)).fetchall()
+    
+    st.markdown("### 🛰️ قنوات الاتصال")
     if st.button("📢 الساحة العامة"):
         st.session_state.active_sid, st.session_state.active_name = "PUBLIC", "الساحة العامة"
-    
-    for s in my_servs:
-        if st.button(f"👁️ {s[1]}"):
-            st.session_state.active_sid, st.session_state.active_name = s[0], s[1]
 
-# --- منطقة المحادثة والأعضاء ---
+    for c in my_channels:
+        label = f"👥 {c[1]}" if c[2] == 'GROUP' else f"✉️ {c[1]}"
+        if st.button(label):
+            st.session_state.active_sid, st.session_state.active_name = c[0], c[1]
+
+# --- منطقة المحادثة ---
 if "active_sid" not in st.session_state:
     st.session_state.active_sid, st.session_state.active_name = "PUBLIC", "الساحة العامة"
 
 st.title(f"📡 {st.session_state.active_name}")
 
-# عرض أعضاء القناة
-if st.session_state.active_sid != "PUBLIC":
+# عرض الأعضاء في المجموعات
+if "DM-" not in st.session_state.active_sid and st.session_state.active_sid != "PUBLIC":
     conn = get_db()
-    current_members = conn.execute("SELECT username FROM server_members WHERE server_id=?", (st.session_state.active_sid,)).fetchall()
-    st.markdown("**أعضاء القناة:** " + " ".join([f"<span class='member-tag'>● {m[0]}</span>" for m in current_members]), unsafe_allow_html=True)
-    st.divider()
+    m_data = conn.execute("SELECT username FROM server_members WHERE server_id=?", (st.session_state.active_sid,)).fetchall()
+    st.markdown(" ".join([f"<span class='member-tag'>● {m[0]}</span>" for m in m_data]), unsafe_allow_html=True)
 
 # عرض الرسائل
 conn = get_db()
@@ -144,20 +140,20 @@ for m in msgs:
         if m[2] == "text": st.code(m[1], language=None)
         else: st.image(m[1])
 
-# الإرسال
-p = st.chat_input("تشفير...")
-img = st.sidebar.file_uploader("📤 رفع وثيقة", type=['png','jpg'])
+# منطقة الإرسال
+prompt = st.chat_input("تشفير رسالة...")
+img_file = st.sidebar.file_uploader("📤 رفع وثيقة", type=['png','jpg'])
 
-if p:
+if prompt:
     conn = get_db()
-    conn.execute("INSERT INTO messages (server_id, sender, content, type) VALUES (?, ?, ?, ?)", (st.session_state.active_sid, st.session_state.username, p, "text"))
+    conn.execute("INSERT INTO messages (server_id, sender, content, type) VALUES (?, ?, ?, ?)", (st.session_state.active_sid, st.session_state.username, prompt, "text"))
     conn.commit()
     st.rerun()
 
-if img:
-    if st.sidebar.button("إرسال الصورة"):
+if img_file:
+    if st.sidebar.button("نشر الصورة"):
         buf = io.BytesIO()
-        Image.open(img).save(buf, format="PNG")
+        Image.open(img_file).save(buf, format="PNG")
         istr = base64.b64encode(buf.getvalue()).decode()
         conn = get_db()
         conn.execute("INSERT INTO messages (server_id, sender, content, type) VALUES (?, ?, ?, ?)", (st.session_state.active_sid, st.session_state.username, istr, "image"))
