@@ -4,46 +4,78 @@ import random
 # إعدادات الصفحة
 st.set_page_config(page_title="لعبة التخمين السرية", page_icon="🕵️‍♂️")
 
-# تنسيق CSS عشان يطلع الشكل مرتب ومناسب للجوال
+# تنسيق CSS
 st.markdown("""
     <style>
     .main { background-color: #121212; }
     div.stButton > button {
         width: 100%;
         border-radius: 10px;
-        height: 3.5em;
         background-color: #6200ee;
         color: white;
         font-weight: bold;
-        font-size: 18px;
     }
     .secret-box {
         background-color: #1e1e1e;
-        padding: 30px;
+        padding: 25px;
         border-radius: 20px;
         text-align: center;
         border: 3px solid #03dac6;
-        margin: 20px 0;
+    }
+    .player-tag {
+        background-color: #333;
+        padding: 5px 15px;
+        border-radius: 20px;
+        margin: 5px;
+        display: inline-block;
+        border: 1px solid #555;
     }
     h1, h2, h3, p { text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
-# إدارة حالة اللعبة (State)
+# إدارة حالة اللعبة
 if 'stage' not in st.session_state:
     st.session_state.stage = 'setup'
+    st.session_state.player_list = []
     st.session_state.players_data = []
     st.session_state.current_idx = 0
 
-# --- المرحلة 1: الإعداد ---
+# --- المرحلة 1: الإعداد وإضافة الأسماء ---
 if st.session_state.stage == 'setup':
-    st.title("🕵️‍♂️ لعبة التخمين")
+    st.title("🕵️‍♂️ إعداد اللعبة")
     
     range_choice = st.selectbox("اختر نطاق الأرقام:", ["0 - 100", "0 - 1000", "500 - 1000", "100 - 1000"])
-    names_input = st.text_input("أدخل أسماء اللاعبين (افصل بينهم بفاصلة):", placeholder="عبود، فيصل، خالد")
     
-    if st.button("ابدأ اللعب"):
-        if names_input:
+    # خانة إضافة اسم واحد
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        new_name = st.text_input("أدخل اسم اللاعب:", key="name_input", placeholder="اكتب الاسم هنا...")
+    with col2:
+        st.write("##") # موازنة المسافة
+        if st.button("➕"):
+            if new_name.strip():
+                if new_name not in st.session_state.player_list:
+                    st.session_state.player_list.append(new_name.strip())
+                else:
+                    st.warning("الاسم موجود فعلاً!")
+            else:
+                st.error("اكتب اسم!")
+
+    # عرض الأسماء المضافة حالياً
+    if st.session_state.player_list:
+        st.write("### اللاعبين المضافين:")
+        names_html = "".join([f'<div class="player-tag">{name}</div>' for name in st.session_state.player_list])
+        st.markdown(names_html, unsafe_allow_html=True)
+        
+        if st.button("🗑️ مسح الكل"):
+            st.session_state.player_list = []
+            st.rerun()
+
+    st.divider()
+    
+    if st.button("🚀 ابدأ اللعب"):
+        if len(st.session_state.player_list) >= 2:
             # تحديد النطاق
             if range_choice == "0 - 100": r_min, r_max = 0, 100
             elif range_choice == "0 - 1000": r_min, r_max = 0, 1000
@@ -51,57 +83,47 @@ if st.session_state.stage == 'setup':
             else: r_min, r_max = 100, 1000
             
             # توزيع الأرقام
-            names = [n.strip() for n in names_input.replace("،", ",").split(",") if n.strip()]
-            if len(names) < 2:
-                st.error("لازم شخصين على الأقل يلعبون!")
-            else:
-                st.session_state.players_data = [{"name": name, "number": random.randint(r_min, r_max)} for name in names]
-                st.session_state.stage = 'distribute'
-                st.rerun()
+            st.session_state.players_data = [{"name": name, "number": random.randint(r_min, r_max)} for name in st.session_state.player_list]
+            st.session_state.stage = 'distribute'
+            st.rerun()
         else:
-            st.error("يا وحش سجل الأسماء أول!")
+            st.error("أضف شخصين على الأقل عشان تبدأ!")
 
 # --- المرحلة 2: توزيع الأرقام ---
 elif st.session_state.stage == 'distribute':
     idx = st.session_state.current_idx
     if idx < len(st.session_state.players_data):
         player = st.session_state.players_data[idx]
-        
         st.subheader(f"دور اللاعب: {player['name']}")
-        st.write("---")
-        st.warning(f"عط الجوال الحين لـ **{player['name']}** وباقي اللاعبين يغمضون!")
+        st.info("عط الجوال لراعي الاسم المكتوب فوق.")
         
-        show_btn = st.button(f"أنا {player['name']}.. ورني رقمي 🔓")
-        
-        if show_btn:
+        if st.checkbox(f"أنا {player['name']}.. ورني رقمي"):
             st.markdown(f"""
             <div class="secret-box">
-                <p style="font-size: 20px;">رقمك السري هو:</p>
-                <h1 style="color: #03dac6; font-size: 60px;">{player['number']}</h1>
-                <p>احفظ الرقم زين ولا تعلم أحد!</p>
+                <p>رقمك السري هو:</p>
+                <h1 style="color: #03dac6; font-size: 50px;">{player['number']}</h1>
+                <p>احفظه ولا تعلم أحد!</p>
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("حفظت الرقم.. للي بعده ➡️"):
+            if st.button("حفظت الرقم، للي بعده ➡️"):
                 st.session_state.current_idx += 1
                 st.rerun()
     else:
         st.session_state.stage = 'play'
         st.rerun()
 
-# --- المرحلة 3: شاشة اللعب والأسئلة ---
+# --- المرحلة 3: شاشة اللعب ---
 elif st.session_state.stage == 'play':
     st.title("🎮 بدأت اللعبة!")
     st.balloons()
-    st.success("كل واحد الحين يعرف رقمه السري.. ابدأوا التخمين!")
     
-    st.write("### قائمة اللاعبين:")
+    st.write("### من بيسأل مين؟")
+    # هنا نقدر نسوي حركة عشوائية للأسئلة
+    st.info("الأسماء تحت، ابدأوا التحدي!")
     for p in st.session_state.players_data:
         st.write(f"👤 {p['name']}")
         
-    st.divider()
-    st.info("طريقة اللعب: واحد يسأل الثاني أسئلة ذكية عشان يحاول يعرف رقمه (مثلاً: رقمك زوجي؟ أكبر من 50؟)")
-    
-    if st.button("إنهاء اللعبة وإعادة الإعداد"):
+    if st.button("إعادة من جديد"):
         st.session_state.clear()
         st.rerun()
