@@ -2,9 +2,9 @@ import streamlit as st
 import random
 
 # 1. إعدادات الصفحة
-st.set_page_config(page_title="لعبة التخمين السرية", page_icon="🕵️‍♂️")
+st.set_page_config(page_title="لعبة التخمين السرية - المطور", page_icon="🕵️‍♂️")
 
-# 2. التأكد من وجود المتغيرات في الذاكرة (هنا حل المشكلة)
+# 2. تهيئة المتغيرات في الذاكرة
 if 'stage' not in st.session_state:
     st.session_state.stage = 'setup'
 if 'player_list' not in st.session_state:
@@ -59,19 +59,18 @@ if st.session_state.stage == 'setup':
             if new_name.strip():
                 if new_name.strip() not in st.session_state.player_list:
                     st.session_state.player_list.append(new_name.strip())
-                    st.rerun() # تحديث الصفحة عشان يظهر الاسم فوراً
+                    st.rerun()
                 else:
                     st.warning("الاسم موجود!")
             else:
                 st.error("اكتب اسم!")
 
-    # عرض الأسماء المضافة
     if st.session_state.player_list:
         st.write("### اللاعبين المضافين:")
         names_html = "".join([f'<div class="player-tag">{name}</div>' for name in st.session_state.player_list])
         st.markdown(names_html, unsafe_allow_html=True)
         
-        if st.button("🗑️ مسح الكل"):
+        if st.button("🗑️ مسح قائمة الأسماء نهائياً"):
             st.session_state.player_list = []
             st.rerun()
 
@@ -79,12 +78,15 @@ if st.session_state.stage == 'setup':
     
     if st.button("🚀 ابدأ اللعب"):
         if len(st.session_state.player_list) >= 2:
+            # تحديد النطاق
             if range_choice == "0 - 100": r_min, r_max = 0, 100
             elif range_choice == "0 - 1000": r_min, r_max = 0, 1000
             elif range_choice == "500 - 1000": r_min, r_max = 500, 1000
             else: r_min, r_max = 100, 1000
             
+            # توليد أرقام جديدة للأسماء الموجودة
             st.session_state.players_data = [{"name": name, "number": random.randint(r_min, r_max)} for name in st.session_state.player_list]
+            st.session_state.current_idx = 0
             st.session_state.stage = 'distribute'
             st.rerun()
         else:
@@ -119,10 +121,22 @@ elif st.session_state.stage == 'play':
     st.title("🎮 بدأت اللعبة!")
     st.balloons()
     
-    st.write("### قائمة اللاعبين:")
+    st.write("### كشف الأرقام (للتأكد من المصداقية 🔍):")
+    
+    # عرض الأسماء مع إمكانية كشف الرقم السري
     for p in st.session_state.players_data:
-        st.write(f"👤 {p['name']}")
-        
-    if st.button("إعادة الإعداد من جديد"):
-        st.session_state.clear()
-        st.rerun()
+        with st.expander(f"👤 اللاعب: {p['name']}"):
+            st.write(f"الرقم السري الحقيقي لـ **{p['name']}** هو: `{p['number']}`")
+
+    st.divider()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 جولة جديدة (نفس الأسماء)"):
+            # نرجع لمرحلة الإعداد بس الأسماء تبقى محفوظة
+            st.session_state.stage = 'setup'
+            st.rerun()
+    with col2:
+        if st.button("🚫 إنهاء ومسح الكل"):
+            st.session_state.clear()
+            st.rerun()
