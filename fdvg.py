@@ -1,22 +1,18 @@
 import streamlit as st
 import random
-import time
 
 # 1. إعدادات الصفحة
-st.set_page_config(page_title="مجموعة الألعاب الجماعية", page_icon="🎮")
+st.set_page_config(page_title="لعبة التخمين السرية - المطور", page_icon="🕵️‍♂️")
 
-# 2. تهيئة المتغيرات في الذاكرة (Session State)
+# 2. تهيئة المتغيرات في الذاكرة
+if 'stage' not in st.session_state:
+    st.session_state.stage = 'setup'
 if 'player_list' not in st.session_state:
     st.session_state.player_list = []
-if 'game_choice' not in st.session_state:
-    st.session_state.game_choice = "الرئيسية"
-if 'lucky_winner' not in st.session_state:
-    st.session_state.lucky_winner = None
-if 'random_char' not in st.session_state:
-    st.session_state.random_char = ""
-
-# --- قائمة الحروف الأبجدية ---
-arabic_chars = "أبتثجحخدذرزسشصضطظعغفقكلمنهوي"
+if 'players_data' not in st.session_state:
+    st.session_state.players_data = []
+if 'current_idx' not in st.session_state:
+    st.session_state.current_idx = 0
 
 # 3. تنسيق CSS
 st.markdown("""
@@ -28,15 +24,13 @@ st.markdown("""
         background-color: #6200ee;
         color: white;
         font-weight: bold;
-        height: 50px;
     }
-    .winner-box {
+    .secret-box {
         background-color: #1e1e1e;
-        padding: 30px;
-        border-radius: 25px;
+        padding: 25px;
+        border-radius: 20px;
         text-align: center;
-        border: 4px dashed #03dac6;
-        margin-top: 20px;
+        border: 3px solid #03dac6;
     }
     .player-tag {
         background-color: #333;
@@ -50,77 +44,99 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- الجانب الجانبي (Sidebar) لإدارة الأسماء واختيار اللعبة ---
-with st.sidebar:
-    st.title("⚙️ الإعدادات")
-    st.session_state.game_choice = st.radio("اختر اللعبة:", ["الرئيسية", "لعبة الأرقام السرية", "عجلة الحظ (حيوان جماد)"])
+# --- المرحلة 1: الإعداد ---
+if st.session_state.stage == 'setup':
+    st.title("🕵️‍♂️ إعداد اللعبة")
     
-    st.divider()
-    st.subheader("👥 إدارة اللاعبين")
-    new_name = st.text_input("أضف اسم لاعب:", key="sidebar_name")
-    if st.button("➕ إضافة"):
-        if new_name.strip() and new_name not in st.session_state.player_list:
-            st.session_state.player_list.append(new_name.strip())
-            st.rerun()
+    range_choice = st.selectbox("اختر نطاق الأرقام:", ["0 - 100", "0 - 1000", "500 - 1000", "100 - 1000"])
     
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        new_name = st.text_input("أدخل اسم اللاعب:", key="name_input_text", placeholder="اكتب الاسم هنا...")
+    with col2:
+        st.write("##")
+        if st.button("➕"):
+            if new_name.strip():
+                if new_name.strip() not in st.session_state.player_list:
+                    st.session_state.player_list.append(new_name.strip())
+                    st.rerun()
+                else:
+                    st.warning("الاسم موجود!")
+            else:
+                st.error("اكتب اسم!")
+
     if st.session_state.player_list:
-        st.write("اللاعبين الحاضرين:")
-        for name in st.session_state.player_list:
-            st.markdown(f'<div class="player-tag">{name}</div>', unsafe_allow_html=True)
-        if st.button("🗑️ مسح القائمة"):
+        st.write("### اللاعبين المضافين:")
+        names_html = "".join([f'<div class="player-tag">{name}</div>' for name in st.session_state.player_list])
+        st.markdown(names_html, unsafe_allow_html=True)
+        
+        if st.button("🗑️ مسح قائمة الأسماء نهائياً"):
             st.session_state.player_list = []
             st.rerun()
 
-# --- الشاشة الرئيسية ---
-if st.session_state.game_choice == "الرئيسية":
-    st.title("🎮 أهلاً بكم في مجلس الألعاب")
-    st.info("أضف أسماء اللاعبين من القائمة الجانبية ثم اختر لعبة لتبدأ!")
-    if not st.session_state.player_list:
-        st.warning("⚠️ ابدأ بإضافة لاعبين أولاً.")
-
-# --- لعبة الأرقام السرية (كودك القديم مع تعديلات الحفظ) ---
-elif st.session_state.game_choice == "لعبة الأرقام السرية":
-    st.title("🕵️‍♂️ لعبة الرقم السري")
-    if len(st.session_state.player_list) < 2:
-        st.error("تحتاج لاعبين على الأقل!")
-    else:
-        # (هنا يوضع منطق اللعبة الأول نفسه مع ربطه بـ player_list)
-        # لتوفير المساحة، افترضنا أنك بتدمجه هنا بنفس المنطق السابق.
-        st.write("هذه اللعبة جاهزة، استخدم الأسماء المضافة!")
-        if st.button("توليد أرقام عشوائية والبدء"):
-             st.success("تم توزيع الأرقام! (طبق منطق التوزيع هنا)")
-
-# --- اللعبة الجديدة: عجلة الحظ (حيوان جماد) ---
-elif st.session_state.game_choice == "عجلة الحظ (حيوان جماد)":
-    st.title("🎡 عجلة الحظ العشوائية")
-    st.write("ضع الجوال في المنتصف واضغط الزر!")
+    st.divider()
     
-    if len(st.session_state.player_list) < 2:
-        st.error("أضف لاعبين من القائمة الجانبية أولاً!")
-    else:
-        if st.button("🚀 لـف العجلة!"):
-            # أنيميشن بسيط
-            placeholder = st.empty()
-            for _ in range(10):
-                temp_name = random.choice(st.session_state.player_list)
-                placeholder.markdown(f"<h2 style='color: gray;'>🔄 يدور... {temp_name}</h2>", unsafe_allow_html=True)
-                time.sleep(0.1)
+    if st.button("🚀 ابدأ اللعب"):
+        if len(st.session_state.player_list) >= 2:
+            # تحديد النطاق
+            if range_choice == "0 - 100": r_min, r_max = 0, 100
+            elif range_choice == "0 - 1000": r_min, r_max = 0, 1000
+            elif range_choice == "500 - 1000": r_min, r_max = 500, 1000
+            else: r_min, r_max = 100, 1000
             
-            st.session_state.lucky_winner = random.choice(st.session_state.player_list)
-            st.session_state.random_char = random.choice(arabic_chars)
-            st.balloons()
+            # توليد أرقام جديدة للأسماء الموجودة
+            st.session_state.players_data = [{"name": name, "number": random.randint(r_min, r_max)} for name in st.session_state.player_list]
+            st.session_state.current_idx = 0
+            st.session_state.stage = 'distribute'
+            st.rerun()
+        else:
+            st.error("أضف شخصين على الأقل!")
 
-        if st.session_state.lucky_winner:
+# --- المرحلة 2: توزيع الأرقام ---
+elif st.session_state.stage == 'distribute':
+    idx = st.session_state.current_idx
+    if idx < len(st.session_state.players_data):
+        player = st.session_state.players_data[idx]
+        st.subheader(f"دور اللاعب: {player['name']}")
+        st.info(f"عط الجوال لـ {player['name']}")
+        
+        if st.checkbox(f"أنا {player['name']}.. عرض الرقم"):
             st.markdown(f"""
-            <div class="winner-box">
-                <h3>وقع الاختيار على:</h3>
-                <h1 style="color: #03dac6; font-size: 60px;">{st.session_state.lucky_winner}</h1>
-                <hr>
-                <p>المطلوب منك (اسم، حيوان، جماد، بلد) يبدأ بحرف:</p>
-                <h1 style="color: #ff0266; font-size: 80px;">{st.session_state.random_char}</h1>
+            <div class="secret-box">
+                <p>رقمك السري هو:</p>
+                <h1 style="color: #03dac6; font-size: 50px;">{player['number']}</h1>
+                <p>احفظه ولا تعلم أحد!</p>
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button("🔄 جولة أخرى"):
-                st.session_state.lucky_winner = None
+            if st.button("تم، اللي بعده ➡️"):
+                st.session_state.current_idx += 1
                 st.rerun()
+    else:
+        st.session_state.stage = 'play'
+        st.rerun()
+
+# --- المرحلة 3: شاشة اللعب ---
+elif st.session_state.stage == 'play':
+    st.title("🎮 بدأت اللعبة!")
+    st.balloons()
+    
+    st.write("### كشف الأرقام (للتأكد من المصداقية 🔍):")
+    
+    # عرض الأسماء مع إمكانية كشف الرقم السري
+    for p in st.session_state.players_data:
+        with st.expander(f"👤 اللاعب: {p['name']}"):
+            st.write(f"الرقم السري الحقيقي لـ **{p['name']}** هو: `{p['number']}`")
+
+    st.divider()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 جولة جديدة (نفس الأسماء)"):
+            # نرجع لمرحلة الإعداد بس الأسماء تبقى محفوظة
+            st.session_state.stage = 'setup'
+            st.rerun()
+    with col2:
+        if st.button("🚫 إنهاء ومسح الكل"):
+            st.session_state.clear()
+            st.rerun()
